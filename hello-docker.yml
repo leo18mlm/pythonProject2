@@ -1,0 +1,54 @@
+---
+- hosts: ec2-instance
+
+  become: true
+  tasks:
+    - name: Install required system packages
+      apt:
+        pkg:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+          - python3-pip
+          - virtualenv
+          - python3-setuptools
+        state: latest
+        update_cache: true
+
+    - name: Add Docker GPG apt Key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker Repository
+      apt_repository:
+        repo: deb https://download.docker.com/linux/ubuntu focal stable
+        state: present
+
+    - name: Update apt and install docker-ce and docker-compose
+      apt:
+        pkg:
+          - docker-ce
+          - docker-compose
+        state: latest
+        update_cache: true
+
+    - name: Install Docker Module for Python
+      pip:
+        name: docker
+
+    - name: Get ECR token
+      shell: "aws ecr get-login-password --region us-east-1"
+      register: ecr_token
+
+    - name: Log into ECR registry
+      docker_login:
+        registry_url: "891377322109.dkr.ecr.us-east-1.amazonaws.com"
+        debug: yes
+        username: "AWS"
+        password: "{{ ecr_token.stdout }}"
+        reauthorize: yes
+
+    - name: Pull Docker image from ECR
+      command: "docker pull 891377322109.dkr.ecr.us-east-1.amazonaws.com/hello-boss:latest"
